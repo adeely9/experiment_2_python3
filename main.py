@@ -7,19 +7,20 @@ import numpy as np
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import os
+import sys
 import model
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from IPython import embed
 
 parser = argparse.ArgumentParser('Options for training SqueezeNet in pytorch')
-parser.add_argument('--batch-size', type=int, default=64, metavar='N', help='batch size of train')
+parser.add_argument('--batch-size', type=int, default=40, metavar='N', help='batch size of train')
 parser.add_argument('--epoch', type=int, default=55, metavar='N', help='number of epochs to train for')
 parser.add_argument('--learning-rate', type=float, default=0.001, metavar='LR', help='learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='percentage of past parameters to store')
-parser.add_argument('--no-cuda', action='store_true', default=False, help='use cuda for training')
-parser.add_argument('--log-schedule', type=int, default=10, metavar='N', help='number of epochs to save snapshot after')
-parser.add_argument('--seed', type=int, default=1, help='set seed to some constant value to reproduce experiments')
+parser.add_argument('--no-cuda', action='store_true', default=True, help='use cuda for training')
+parser.add_argument('--log-schedule', type=int, default=1, metavar='N', help='number of epochs to save snapshot after')
+parser.add_argument('--seed', type=int, default=10, help='set seed to some constant value to reproduce experiments')
 parser.add_argument('--model_name', type=str, default=None, help='Use a pretrained model')
 parser.add_argument('--want_to_test', type=bool, default=False, help='make true if you just want to test')
 parser.add_argument('--epoch_55', action='store_true', help='would you like to use 55 epoch learning rule')
@@ -105,7 +106,7 @@ def train(epoch):
         print("Configuring optimizer with lr={:.5f} and weight_decay={:.4f}".format(params['learning_rate'], params['weight_decay']))
         adjustlrwd(params)
     ###########################################################################
-
+    
     global avg_loss
     correct = 0
     net.train()
@@ -113,6 +114,9 @@ def train(epoch):
         # trying to overfit a small data
         # if b_idx == 100:
         #     break
+        print("\n\n\n---b_idx---",b_idx," ----",args.log_schedule,'')
+        if b_idx % args.log_schedule == 0:
+            print(" \n----it is divided ----\n")
 
         if args.cuda:
             data, targets = data.cuda(), targets.cuda()

@@ -21,3 +21,17 @@ I am currently using SGD for training : learning rate and weight decay are curre
 python main.py --batch_size 32 --epoch 10 --learning_rate 1e-3 --epoch_55
 ```
 # experiment_2_python3
+-----------------------------------------------Trained 55 epochs code-------------------------------------------------------
+```bash
+
+# SueezeNet trained on Cifar-10 dataset
+
+55 epochs are performed and results are stored in separate folder
+
+Best squeezenet model is saved as "bsqueezenet_onfulldata.pth" 
+
+after 55 epochs completion, trained model is stored in "final_trained_model directory"
+
+Results of each epoch and its iterations is stored in "train_output.txt" file
+
+

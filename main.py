@@ -8,13 +8,21 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import os
 import sys
+import shutil
 import model
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from IPython import embed
 
+#------ START added by Adeel ------
+final_model_path = 'final_trained_model/55_epoch_squeezenet.pth'
+best_prec1 = 0
+start_epoch = 1
+checkpoint_path = 'train_checkpoint/checkpoint.pth.tar'
+#------ END added by Adeel ------ 
+
 parser = argparse.ArgumentParser('Options for training SqueezeNet in pytorch')
-parser.add_argument('--batch-size', type=int, default=40, metavar='N', help='batch size of train')
+parser.add_argument('--batch-size', type=int, default=100, metavar='N', help='batch size of train')
 parser.add_argument('--epoch', type=int, default=55, metavar='N', help='number of epochs to train for')
 parser.add_argument('--learning-rate', type=float, default=0.001, metavar='LR', help='learning rate')
 parser.add_argument('--momentum', type=float, default=0.9, metavar='M', help='percentage of past parameters to store')
@@ -25,6 +33,9 @@ parser.add_argument('--model_name', type=str, default=None, help='Use a pretrain
 parser.add_argument('--want_to_test', type=bool, default=False, help='make true if you just want to test')
 parser.add_argument('--epoch_55', action='store_true', help='would you like to use 55 epoch learning rule')
 parser.add_argument('--num_classes', type=int, default=10, help="how many classes training for")
+#------ START added by Adeel ------
+parser.add_argument('--resume', default=checkpoint_path, type=str, metavar='PATH', help='path to latest checkpoint (default: none)')
+#------ END added by Adeel ------
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
@@ -114,9 +125,6 @@ def train(epoch):
         # trying to overfit a small data
         # if b_idx == 100:
         #     break
-        print("\n\n\n---b_idx---",b_idx," ----",args.log_schedule,'')
-        if b_idx % args.log_schedule == 0:
-            print(" \n----it is divided ----\n")
 
         if args.cuda:
             data, targets = data.cuda(), targets.cuda()
@@ -138,9 +146,13 @@ def train(epoch):
         optimizer.step()
 
         if b_idx % args.log_schedule == 0:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            train_output = 'Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}\n'.format(
                 epoch, (b_idx+1) * len(data), len(train_loader.dataset),
-                100. * (b_idx+1)*len(data) / len(train_loader.dataset), loss.data[0]))
+                100. * (b_idx+1)*len(data) / len(train_loader.dataset), loss.data[0])
+            print(train_output)
+            f=open("train_output.txt", "a+")
+            f.write(train_output)
+            
 
             # also plot the loss, it should go down exponentially at some point
             ax1.plot(avg_loss)
@@ -148,7 +160,11 @@ def train(epoch):
 
     # now that the epoch is completed plot the accuracy
     train_accuracy = correct / float(len(train_loader.dataset))
-    print("training accuracy ({:.2f}%)".format(100*train_accuracy))
+    training_accuracy = "training accuracy ({:.2f}%)".format(100*train_accuracy)
+    print(training_accuracy)
+    f=open("train_output.txt", "a+")
+    f.write("\n\n------------- Training Accuracy ------\n")
+    f.write(training_accuracy)
     return (train_accuracy*100.0)
 
 
@@ -169,9 +185,17 @@ def val():
         pred = score.data.max(1)[1] # got the indices of the maximum, match them
         correct += pred.eq(target.data).cpu().sum()
 
-    print("predicted {} out of {}".format(correct, 73*64))
+    predicted_val = "predicted {} out of {}".format(correct, 73*64)
+    print(predicted_val)
     val_accuracy = correct / (73.0*64.0) * 100
-    print("accuracy = {:.2f}".format(val_accuracy))
+    accuracy_val = "accuracy = {:.2f}".format(val_accuracy)
+    print(accuracy_val)
+    f=open("train_output.txt", "a+")
+    f.write("\n\n------------- Validation Accuracy ------\n")
+    f.write(predicted_val)
+    f.write("\n")
+    f.write(accuracy_val)
+    f.write("\n---------------------------------------\n")
 
     # now save the model if it has better accuracy than the best model seen so forward
     if val_accuracy > best_accuracy:
@@ -203,16 +227,54 @@ def test():
     print("Predicted {} out of {} correctly".format(test_correct, total_examples))
     return 100.0 * test_correct / (float(total_examples))
 
+
+#------ START added by Adeel ------
+def save_checkpoint(state, filename='train_checkpoint/checkpoint.pth.tar'):
+    torch.save(state, filename)
+
+#------ END added by Adeel ------
+
 if __name__ == '__main__':
+    best_prec1
+    
+#---------------------------- START added by Adeel ------------------    
+# optionally resume from a checkpoint
+    if args.resume:
+        if os.path.isfile(args.resume):
+           print("=> loading checkpoint '{}'".format(args.resume))
+           checkpoint = torch.load(args.resume)
+           start_epoch = checkpoint['epoch']
+           print("Change EpocH: ",start_epoch,"\n\n")
+           net.load_state_dict(checkpoint['state_dict'])
+           optimizer.load_state_dict(checkpoint['optimizer'])
+           print("=> loaded checkpoint '{}' (epoch {})".format(args.resume, checkpoint['epoch']))
+           
+        else:
+            print("=> no checkpoint found at '{}'".format(args.resume))
+        
+ #---------------------------- END added by Adeel ------------------    
+    
     if not args.want_to_test:
         fig2, ax2 = plt.subplots()
         train_acc, val_acc = list(), list()
-        for i in range(1,args.epoch+1):
+        for i in range(start_epoch,args.epoch+1):
             train_acc.append(train(i))
             val_acc.append(val())
             ax2.plot(train_acc, 'g')
             ax2.plot(val_acc, 'b')
-            fig2.savefig('train_val_accuracy.jpg')
+            fig2.savefig('train_val_accuracy.jpg')            
+            #------------ START added by Adeel ----------
+            save_checkpoint({
+                    'epoch': i+1,
+                    'state_dict': net.state_dict(),
+                    'optimizer': optimizer.state_dict()
+                    },checkpoint_path)
+            if args.epoch==i:
+                # save the model
+                torch.save(net.state_dict(),final_model_path)
+            else:
+                print("Epoch is not last")
+            #------------ END added by Adeel ----------
     else:
         test_acc = test()
         print("Testing accuracy on CIFAR-10 data is {:.2f}%".format(test_acc))
